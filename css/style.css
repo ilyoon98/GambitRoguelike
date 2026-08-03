@@ -1,0 +1,259 @@
+/* ============================================================
+   HOUSEBREAKER — 스타일 (다크 카지노 테마)
+   ============================================================ */
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #0d1117;
+  --felt: #0f2b1e;
+  --felt-light: #164733;
+  --panel: #161b22;
+  --panel2: #1c2430;
+  --gold: #d4af37;
+  --gold-dim: #8a7223;
+  --red: #d64545;
+  --black-num: #2a2f3a;
+  --green: #2e9e5b;
+  --text: #e6e6e6;
+  --text-dim: #9aa4b2;
+  --danger: #ff6b6b;
+}
+
+body {
+  background: radial-gradient(ellipse at top, #14202e 0%, var(--bg) 60%);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Malgun Gothic', '맑은 고딕', sans-serif;
+  min-height: 100vh;
+}
+
+#app { max-width: 1180px; margin: 0 auto; padding: 16px; }
+.screen { animation: fadein .25s ease; }
+@keyframes fadein { from { opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
+
+b { color: var(--gold); }
+.small { font-size: 12px; color: var(--text-dim); }
+.hint { color: var(--text-dim); margin: 8px 0 14px; font-size: 14px; }
+.none { color: var(--text-dim); font-size: 13px; }
+
+/* ---------- 버튼 ---------- */
+.btn {
+  display:inline-block; padding: 10px 22px; border-radius: 8px; border: 1px solid #3a4454;
+  background: var(--panel2); color: var(--text); font-size: 15px; cursor: pointer;
+  transition: all .15s; font-family: inherit;
+}
+.btn:hover { border-color: var(--gold); transform: translateY(-1px); }
+.btn.gold { background: linear-gradient(180deg, #e8c95a, #b8912a); color:#241c05; font-weight:700; border-color:#f0d878; }
+.btn.gold:hover { filter: brightness(1.1); }
+.btn.big { font-size: 18px; padding: 13px 34px; }
+.btn.ghost { background: transparent; color: var(--text-dim); }
+.btn.choice { display:block; width:100%; text-align:left; margin:6px 0; }
+.btn.disabled, .disabled { opacity:.35; pointer-events:none; }
+
+/* ---------- 타이틀 ---------- */
+.title-screen { text-align:center; padding-top: 40px; }
+.logo { font-size: 64px; font-weight: 900; letter-spacing: 4px; color: var(--text); }
+.logo span { color: var(--gold); }
+.tagline { font-size: 17px; color: var(--text-dim); margin-top: 6px; }
+.promise { font-size: 14px; color: var(--gold); margin: 14px 0 30px; font-style: italic; }
+.char-select { display:flex; gap:18px; justify-content:center; margin-bottom: 26px; }
+.char-card {
+  width: 240px; background: var(--panel); border:1px solid #303845; border-radius: 14px;
+  padding: 22px 18px; transition: all .2s;
+}
+.char-card.active { border-color: var(--gold); cursor:pointer; box-shadow: 0 0 24px rgba(212,175,55,.15); }
+.char-card.active:hover { transform: translateY(-4px); }
+.char-card.locked { opacity:.45; }
+.char-icon { font-size: 40px; }
+.char-name { font-size: 24px; font-weight:800; color: var(--gold); margin: 8px 0 2px; }
+.char-base { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
+.char-desc { font-size: 13px; line-height: 1.6; min-height: 62px; }
+.char-card .btn { margin-top: 12px; }
+.footnote { color:#5a6472; font-size: 12px; }
+
+/* ---------- 공통 헤더 ---------- */
+.run-header { display:flex; gap:14px; flex-wrap:wrap; padding: 10px 14px; background: var(--panel); border-radius: 10px; margin-bottom: 14px; border:1px solid #2a3340;}
+.run-header .stat { font-size: 14px; color: var(--text-dim); }
+.run-header .stat.money b { color:#7ce38b; }
+.run-header .stat.debt b { color: var(--danger); }
+
+/* ---------- 맵 ---------- */
+.zone-title { color: var(--gold); font-size: 22px; }
+.map-flow { margin: 10px 0 20px; }
+.map-layer { display:flex; gap:14px; justify-content:center; }
+.map-arrow { text-align:center; color:#3d4756; font-size: 13px; margin: 4px 0; }
+.map-node {
+  width: 210px; background: var(--panel); border: 1px solid #2c3542; border-radius: 12px;
+  padding: 12px 14px; text-align:center; opacity:.5;
+}
+.map-node.done { opacity:.25; }
+.map-node.current { opacity:1; border-color: var(--gold); box-shadow: 0 0 18px rgba(212,175,55,.12); }
+.map-node.clickable { cursor:pointer; transition: transform .15s; }
+.map-node.clickable:hover { transform: scale(1.04); background: var(--panel2); }
+.node-icon { font-size: 26px; }
+.node-name { font-weight: 700; margin: 4px 0 2px; }
+.node-danger { font-size: 11px; color: var(--danger); letter-spacing: 2px; }
+.node-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+.build-panel { background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 10px 14px; font-size: 13px; display:flex; flex-direction:column; gap:6px;}
+.tag { display:inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; margin: 1px 2px; cursor:help; }
+.tag.skill { background:#1d3252; border:1px solid #33517e; }
+.tag.trinket { background:#3a2d52; border:1px solid #5a4a80; }
+.tag.contract { background:#52302d; border:1px solid #80504a; }
+
+/* ---------- 전투 ---------- */
+.battle-top { display:flex; gap:14px; margin-bottom: 12px; }
+.dealer-box { flex:1; background: var(--panel); border:1px solid #2a3340; border-radius: 12px; padding: 12px 16px; }
+.dealer-name { font-size: 19px; font-weight: 800; }
+.dealer-tier { font-size: 12px; color: var(--gold); border:1px solid var(--gold-dim); padding: 1px 8px; border-radius: 12px; margin-left: 6px; vertical-align: 2px;}
+.dealer-flavor { font-size: 12px; color: var(--text-dim); margin: 3px 0 8px; }
+.vault-bar { position:relative; height: 26px; background:#0b0f14; border-radius: 6px; overflow:hidden; border:1px solid #333c49; }
+.vault-fill { height:100%; background: linear-gradient(90deg, #c9a227, #f2d060); transition: width .5s ease; }
+.vault-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size: 13px; font-weight:700; color:#fff; text-shadow: 0 1px 3px #000; }
+.dealer-actions { display:flex; gap:10px; margin-top: 8px; flex-wrap:wrap; }
+.act { font-size: 13px; padding: 3px 10px; border-radius: 6px; cursor: help; }
+.act.now { background:#3d2222; border:1px solid #6e3d3d; }
+.act.next { background:#22303d; border:1px solid #3d566e; color: var(--text-dim); }
+.house-rules { margin-top: 8px; display:flex; flex-direction:column; gap:2px; }
+.house-rules span { font-size: 12px; color:#e0b34c; }
+
+.player-box { width: 190px; background: var(--panel); border:1px solid #2a3340; border-radius: 12px; padding: 12px 16px; display:flex; flex-direction:column; gap:7px; }
+.pstat { font-size: 14px; color: var(--text-dim); }
+.pstat.money b { color:#7ce38b; font-size: 17px; }
+.pstat.small { font-size: 12px; }
+
+.battle-mid { display:flex; gap:14px; align-items:flex-start; }
+.board-wrap { flex: 1; background: linear-gradient(180deg, var(--felt-light), var(--felt)); border:2px solid #0a1f15; border-radius: 14px; padding: 14px; }
+.side-wrap { width: 340px; display:flex; flex-direction:column; gap:10px; }
+
+/* 결과 영역 */
+.result-area { text-align:center; padding: 6px 0 12px; min-height: 128px; }
+.spin-num {
+  display:inline-flex; align-items:center; justify-content:center;
+  width: 74px; height: 74px; border-radius: 50%; font-size: 30px; font-weight: 900;
+  background:#111; border: 3px solid var(--gold); color:#fff;
+}
+.spin-num.idle { background: transparent; border-color:#2f5b45; font-size: 34px; }
+.spin-num.c-red { background: var(--red); }
+.spin-num.c-black { background: #14181f; }
+.spin-num.c-green { background: var(--green); }
+.result-hint { font-size: 13px; color: #bcd8c9; margin-top: 6px; }
+.post-actions { margin-top: 10px; display:flex; gap:10px; justify-content:center; }
+
+/* 보드 */
+.board { display:flex; gap:8px; justify-content:center; }
+.board-zero { display:flex; flex-direction:column; gap:4px; justify-content:flex-start; }
+.board-grid { display:flex; flex-direction:column; gap:4px; }
+.board-row { display:flex; gap:4px; }
+.num-cell {
+  position:relative; width: 52px; height: 34px; border-radius: 6px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size: 14px; cursor:pointer; user-select:none;
+  border: 1px solid rgba(255,255,255,.14); transition: all .1s;
+}
+.board-zero .num-cell { height: 46px; }
+.num-cell.c-red { background: var(--red); }
+.num-cell.c-black { background: var(--black-num); }
+.num-cell.c-green { background: var(--green); }
+.num-cell:hover { filter: brightness(1.25); transform: scale(1.06); z-index:2; }
+.num-cell.removed { opacity:.15; text-decoration: line-through; pointer-events:none; }
+.num-cell.dim { opacity:.35; }
+.num-cell.magnet { outline: 2px solid #6fd3ff; outline-offset: 1px; }
+.num-cell.has-bet { box-shadow: 0 0 0 2px var(--gold); }
+.picking .num-cell { outline: 1px dashed rgba(111,211,255,.4); }
+.chip-mark {
+  position:absolute; top:-7px; right:-6px; background: var(--gold); color:#241c05;
+  border-radius: 10px; font-size: 10px; padding: 1px 5px; font-weight:800; box-shadow: 0 1px 3px #000;
+}
+
+/* 외부 베팅 */
+.outside-bets { display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top: 12px; }
+.out-bet {
+  position:relative; background: rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.15);
+  border-radius: 8px; padding: 7px 10px; cursor:pointer; text-align:center; transition: all .1s;
+}
+.out-bet:hover { border-color: var(--gold); }
+.out-bet.ob-red { border-color: rgba(214,69,69,.6); }
+.out-bet.ob-black { border-color: rgba(255,255,255,.28); background: rgba(0,0,0,.5); }
+.out-bet.blocked { opacity:.3; cursor:not-allowed; }
+.out-bet.has-bet { box-shadow: 0 0 0 2px var(--gold); }
+.ob-name { font-weight:700; font-size: 14px; }
+.ob-info { font-size: 11px; color:#bcd8c9; }
+
+.chip-row { display:flex; align-items:center; gap:6px; margin-top: 10px; }
+.chip-label { font-size: 12px; color:#bcd8c9; margin-right: 4px; }
+.chip-btn {
+  width: 46px; height: 32px; border-radius: 16px; border:1px solid #555; cursor:pointer;
+  background:#20262f; color: var(--text); font-weight:700; font-family: inherit;
+}
+.chip-btn.sel { background: var(--gold); color:#241c05; border-color:#f0d878; }
+
+/* 사이드 패널 */
+.bet-list { background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+.bet-list.empty { color: var(--text-dim); text-align:center; padding: 16px 12px; line-height:1.7; }
+.bet-head { font-weight:700; color: var(--gold); margin-bottom: 6px; }
+.bet-row { display:flex; align-items:center; gap:8px; padding: 3px 0; border-bottom: 1px dashed #262f3c; }
+.bet-name { flex:1; font-weight:600; }
+.bet-amt { color:#7ce38b; }
+.bet-prob { color: var(--text-dim); font-size: 11px; }
+.bet-x { background:none; border:none; color:#777; cursor:pointer; font-size: 13px; }
+.bet-x:hover { color: var(--danger); }
+
+.skill-bar { background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 10px 12px; }
+.skill-head { font-weight:700; color: var(--gold); font-size: 13px; margin-bottom: 6px; }
+.skill-btn {
+  margin: 2px; padding: 6px 10px; border-radius: 7px; border:1px solid #33517e;
+  background:#1d3252; color: var(--text); font-size: 13px; cursor:pointer; font-family:inherit; transition: all .12s;
+}
+.skill-btn:hover { border-color:#6fd3ff; }
+.skill-btn .cost { font-size: 11px; color:#6fd3ff; font-weight:700; }
+.skill-btn.used { opacity:.35; }
+.trinket-row { margin-top: 8px; border-top: 1px dashed #2a3340; padding-top: 7px; }
+
+.log-panel {
+  background:#0b0f14; border:1px solid #232c38; border-radius: 10px; padding: 10px 12px;
+  font-size: 12px; max-height: 300px; overflow-y:auto; line-height: 1.65;
+}
+.log-line { border-bottom: 1px dotted #1c2530; padding: 2px 0; color:#c3ccd8; }
+.c-red { color:#ff7b7b; }
+.c-black { color:#cfd6e2; }
+.c-green { color:#67d695; }
+
+/* ---------- 보상/상점 ---------- */
+.reward-screen h2, .shop-screen h2, .event-screen h2, .lounge-screen h2, .loan-screen h2 { color: var(--gold); margin-bottom: 4px; }
+.reward-title { color:#7ce38b; font-size: 15px; }
+.pick-row { display:flex; gap:14px; margin: 14px 0 18px; flex-wrap:wrap; }
+.pick-card {
+  width: 250px; background: var(--panel); border:1px solid #303845; border-radius: 12px;
+  padding: 16px; cursor:pointer; transition: all .15s;
+}
+.pick-card:hover { border-color: var(--gold); transform: translateY(-3px); }
+.pick-card.cant { opacity:.4; pointer-events:none; }
+.pick-card.sold { opacity:.25; pointer-events:none; text-align:center; }
+.pick-kind { font-size: 12px; color: var(--text-dim); }
+.pick-name { font-size: 17px; font-weight:800; color: var(--gold); margin: 4px 0 6px; }
+.pick-desc { font-size: 13px; line-height: 1.55; min-height: 44px; }
+.pick-price { margin-top: 8px; font-weight:700; color:#7ce38b; }
+
+/* ---------- 이벤트/기타 ---------- */
+.event-text { font-size: 15px; line-height: 1.7; background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 16px; margin: 10px 0 14px; max-width: 640px; }
+.choice-col { max-width: 640px; }
+
+/* ---------- 종료 ---------- */
+.end-screen { text-align:center; padding-top: 60px; }
+.lose-title { font-size: 54px; color: var(--danger); letter-spacing: 8px; }
+.win-title { font-size: 54px; color: var(--gold); letter-spacing: 4px; }
+.end-screen .event-text { margin: 16px auto; text-align:center; }
+.end-stats { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin: 18px 0; font-size: 15px; color: var(--text-dim); }
+.end-screen .btn { margin-top: 10px; }
+
+/* ---------- 버전 배지 ---------- */
+.version-badge {
+  position: fixed; right: 10px; bottom: 8px;
+  font-size: 11px; color: #4d5866; user-select: none; pointer-events: none;
+  z-index: 50;
+}
+
+@media (max-width: 900px){
+  .battle-mid { flex-direction: column; }
+  .side-wrap { width: 100%; }
+}
