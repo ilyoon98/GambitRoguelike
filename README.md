@@ -46,7 +46,7 @@ node tools/serve.js
 
 ## 버전 관리
 
-- 현재 버전: **v0.3.0** — [js/version.js](js/version.js)의 `GAME_VERSION` 이 단일 출처이며, 게임 화면 우측 하단 배지로 항상 표시된다.
+- 현재 버전: **v0.3.1** — [js/version.js](js/version.js)의 `GAME_VERSION` 이 단일 출처이며, 게임 화면 우측 하단 배지로 항상 표시된다.
 - 릴리스 절차: `js/version.js` 갱신 → 커밋 → 같은 이름의 git 태그(`git tag -a v0.x.y -m "릴리스 메모"`) → `git push --follow-tags origin main`.
 
 ## 다음 단계 (기획서 8장 참고)

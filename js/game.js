@@ -97,6 +97,7 @@ function render(){
     gameover: renderGameOver, victory: renderVictory,
   };
   const scr = G ? G.screen : 'title';
+  if(scr !== lastScreen) clearPopups(); // 화면이 바뀌면 떠 있던 팝업 정리
   $app().innerHTML = screens[scr]();
   // 같은 화면 안에서의 갱신은 페이드인 애니메이션 생략 (화면 껌뻑임 방지)
   if(scr === lastScreen){
@@ -519,31 +520,31 @@ function useSkill(id){
   B.focus -= cost;
   consumeSkill(s.id); // 1회용: 사용 즉시 카드 소모
   switch(s.id){
-    case 'double': m.doubled = true; blog('✨ 더블 베팅: 이번 턴 가장 큰 베팅의 배당 2배.'); break;
-    case 'blackcat': m.blackcat = true; blog('🐈‍⬛ 검은 고양이: 검정 적중 시 다음 턴 배당 +50%.'); break;
-    case 'zerohour': m.zerohour = true; blog('🕛 제로 아워: 0 적중 시 금고 25% 추가 피해.'); break;
+    case 'double': m.doubled = true; skillFx('✨ 더블 베팅: 이번 턴 가장 큰 베팅의 배당 2배.'); break;
+    case 'blackcat': m.blackcat = true; skillFx('🐈‍⬛ 검은 고양이: 검정 적중 시 다음 턴 배당 +50%.'); break;
+    case 'zerohour': m.zerohour = true; skillFx('🕛 제로 아워: 0 적중 시 금고 25% 추가 피해.'); break;
     case 'parity': {
       const c = candidateSet();
       const pick = choice(c.filter(n=>n>=1&&n<=36));
       m.parityLock = pick%2===1 ? 'odd' : 'even';
-      blog(`🔮 홀짝 투시: 이번 결과는 <b>${m.parityLock==='odd'?'홀수':'짝수'}</b> (0 제외 확정).`);
+      skillFx(`🔮 홀짝 투시: 이번 결과는 <b>${m.parityLock==='odd'?'홀수':'짝수'}</b> (0 제외 확정)`);
       break;
     }
     case 'colorsight': applyColorReveal('색 투시'); break;
-    case 'breath': B.usedBreath++; B.focus = Math.min(G.maxFocus, B.focus+4); blog('🌬️ 심호흡: 포커스 +4.'); break;
-    case 'safety': m.safety = true; blog('🛡️ 안전망: 이번 턴 손실 50% 감소.'); break;
-    case 'allin': m.allin = true; blog('🔥 올인 감각: 순수익 +50%, 손실 +25%.'); break;
+    case 'breath': B.usedBreath++; B.focus = Math.min(G.maxFocus, B.focus+4); skillFx('🌬️ 심호흡: 포커스 +4.'); break;
+    case 'safety': m.safety = true; skillFx('🛡️ 안전망: 이번 턴 손실 50% 감소.'); break;
+    case 'allin': m.allin = true; skillFx('🔥 올인 감각: 순수익 +50%, 손실 +25%.'); break;
     case 'prune': {
       const avail = shuffle(candidateSet().filter(n=>n!==0 && n!==DOUBLE_ZERO && !B.bets.some(b=>betHits(b.type,b.target,n))));
       const cut = avail.slice(0,5);
       cut.forEach(n=>m.pruned.add(n));
-      blog(`✂️ 숫자 배제: ${cut.map(numLabel).join(', ')} 를 후보에서 제거.`);
+      skillFx(`✂️ 숫자 배제: <b>${cut.map(numLabel).join(', ')}</b> 를 후보에서 제거`);
       break;
     }
-    case 'jam': m.jam = true; blog(`🔧 딜러 방해: '${B.currentAction.name}' 효과가 무효화됐다.`); break;
-    case 'neighbor': m.neighbor = true; blog('🎯 이웃 베팅: 스트레이트가 휠 양옆에도 적중 (배당 11배).'); break;
-    case 'redsense': m.redsense = true; blog('❤️ 붉은 예감: 빨강 적중 시 포커스 +4.'); break;
-    case 'greenshield': m.greenshield = true; blog('🟢 그린 실드: 0/00이 나오면 자동 재스핀.'); break;
+    case 'jam': m.jam = true; skillFx(`🔧 딜러 방해: '${B.currentAction.name}' 효과가 무효화됐다.`); break;
+    case 'neighbor': m.neighbor = true; skillFx('🎯 이웃 베팅: 스트레이트가 휠 양옆에도 적중 (배당 11배).'); break;
+    case 'redsense': m.redsense = true; skillFx('❤️ 붉은 예감: 빨강 적중 시 포커스 +4.'); break;
+    case 'greenshield': m.greenshield = true; skillFx('🟢 그린 실드: 0/00이 나오면 자동 재스핀.'); break;
   }
   render();
 }
@@ -556,7 +557,7 @@ function applyColorReveal(srcName){
   const col = numColor(pick);
   m.colorLock = col;
   const kr = col==='red'?'빨강':col==='black'?'검정':'초록(0)';
-  blog(`👓 ${srcName}: 이번 결과의 색은 <b class="c-${col}">${kr}</b>.`);
+  skillFx(`👓 ${srcName}: 이번 결과의 색은 <b class="c-${col} kp-big">${kr}</b>`);
 }
 
 function pickMagnetNumber(n){
@@ -571,7 +572,7 @@ function pickMagnetNumber(n){
   for(let k=-4;k<=4;k++) set.add(WHEEL_ORDER[(idx+k+WHEEL_ORDER.length)%WHEEL_ORDER.length]);
   B.turnMods.magnet = set;
   B.pickingNumber = false;
-  blog(`🧲 자석: 결과 후보를 <b>${numLabel(n)}</b> 주변 9칸으로 제한 — [${[...set].map(numLabel).join(', ')}]`);
+  skillFx(`🧲 자석: 결과 후보를 <b>${numLabel(n)}</b> 주변 9칸으로 제한 — [${[...set].map(numLabel).join(', ')}]`);
   render();
 }
 
@@ -658,7 +659,7 @@ function doRespin(cost){
   consumeSkill('respin');
   const cands = candidateSet();
   B.result = choice(cands);
-  blog(`🔄 리스핀${free?' (깨진 주사위: 무료)':''}! 새 결과: <b class="c-${numColor(B.result)}">${numLabel(B.result)}</b>`);
+  skillFx(`🔄 리스핀${free?' (깨진 주사위: 무료)':''}! 새 결과: <b class="c-${numColor(B.result)} kp-big">${numLabel(B.result)}</b>`);
   render();
   scheduleAutoConfirm();
 }
@@ -844,6 +845,29 @@ function confirmResult(){
 
 function betName(b){
   return b.type==='straight' ? `스트레이트 ${numLabel(b.target)}` : BET_TYPES[b.type].name;
+}
+
+// ---------- 팝업 공통 ----------
+function clearPopups(){
+  ['settle-popup','action-popup','skill-popup'].forEach(id=>{
+    const e = document.getElementById(id);
+    if(e) e.remove();
+  });
+}
+
+// ---------- 기술 효과 팝업 ----------
+function skillFx(msg){
+  blog(msg);
+  const old = document.getElementById('skill-popup');
+  if(old) old.remove();
+  const div = document.createElement('div');
+  div.id = 'skill-popup';
+  div.className = 'skill-popup';
+  div.innerHTML = `<div class="kp-body">${msg}</div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', ()=>div.remove());
+  setTimeout(()=>{ div.classList.add('out'); }, 1700);
+  setTimeout(()=>{ div.remove(); }, 2200);
 }
 
 // ---------- 딜러 행동 팝업 ----------

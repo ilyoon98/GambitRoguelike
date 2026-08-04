@@ -79,8 +79,19 @@ b { color: var(--gold); }
 
 /* ---------- 맵 ---------- */
 .zone-title { color: var(--gold); font-size: 22px; }
-.map-flow { margin: 10px 0 20px; }
-.map-layer { display:flex; gap:14px; justify-content:center; }
+.map-viewport {
+  position: relative; height: min(56vh, 500px); overflow: hidden;
+  margin: 10px 0 16px; border-radius: 14px;
+  background: rgba(0,0,0,.18); border: 1px solid #222b38;
+}
+.map-viewport::before, .map-viewport::after {
+  content:''; position:absolute; left:0; right:0; height: 56px; z-index: 2; pointer-events:none;
+}
+.map-viewport::before { top:0; background: linear-gradient(180deg, var(--bg), transparent); }
+.map-viewport::after { bottom:0; background: linear-gradient(0deg, var(--bg), transparent); }
+.map-world { transform-origin: 50% 0; will-change: transform; padding: 24px 0; }
+.map-world.cam-anim { transition: transform .9s cubic-bezier(.3,.75,.25,1); }
+.map-layer { display:flex; gap:14px; justify-content:center; margin: 6px 0; }
 .map-arrow { text-align:center; color:#3d4756; font-size: 13px; margin: 4px 0; }
 .map-node {
   width: 210px; background: var(--panel); border: 1px solid #2c3542; border-radius: 12px;
@@ -88,6 +99,8 @@ b { color: var(--gold); }
 }
 .map-node.done { opacity:.25; }
 .map-node.current { opacity:1; border-color: var(--gold); box-shadow: 0 0 18px rgba(212,175,55,.12); }
+.map-node.veiled { opacity:.55; filter: grayscale(.35); border-style: dashed; }
+.map-node.veiled .node-name { color: var(--text-dim); }
 .map-node.clickable { cursor:pointer; transition: transform .15s; }
 .map-node.clickable:hover { transform: scale(1.04); background: var(--panel2); }
 .node-icon { font-size: 26px; }
@@ -251,12 +264,13 @@ b { color: var(--gold); }
 .c-green { color:#67d695; }
 
 /* ---------- 보상/상점 ---------- */
+.reward-screen, .shop-screen, .event-screen, .lounge-screen, .loan-screen { text-align: center; }
 .reward-screen h2, .shop-screen h2, .event-screen h2, .lounge-screen h2, .loan-screen h2 { color: var(--gold); margin-bottom: 4px; }
 .reward-title { color:#7ce38b; font-size: 15px; }
-.pick-row { display:flex; gap:14px; margin: 14px 0 18px; flex-wrap:wrap; }
+.pick-row { display:flex; gap:14px; margin: 14px 0 18px; flex-wrap:wrap; justify-content:center; }
 .pick-card {
   width: 250px; background: var(--panel); border:1px solid #303845; border-radius: 12px;
-  padding: 16px; cursor:pointer; transition: all .15s;
+  padding: 16px; cursor:pointer; transition: all .15s; text-align:left;
 }
 .pick-card:hover { border-color: var(--gold); transform: translateY(-3px); }
 .pick-card.cant { opacity:.4; pointer-events:none; }
@@ -267,8 +281,8 @@ b { color: var(--gold); }
 .pick-price { margin-top: 8px; font-weight:700; color:#7ce38b; }
 
 /* ---------- 이벤트/기타 ---------- */
-.event-text { font-size: 15px; line-height: 1.7; background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 16px; margin: 10px 0 14px; max-width: 640px; }
-.choice-col { max-width: 640px; }
+.event-text { font-size: 15px; line-height: 1.7; background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 16px; margin: 10px auto 14px; max-width: 640px; text-align:left; }
+.choice-col { max-width: 640px; margin: 0 auto; }
 
 /* ---------- 종료 ---------- */
 .end-screen { text-align:center; padding-top: 60px; }
@@ -305,6 +319,24 @@ b { color: var(--gold); }
 .strip-tile.c-red { background: var(--red); }
 .strip-tile.c-black { background: #1c222c; }
 .strip-tile.c-green { background: var(--green); }
+
+/* ---------- 기술 효과 팝업 ---------- */
+.skill-popup {
+  position: fixed; top: 30%; left: 50%; z-index: 86;
+  transform: translateX(-50%);
+  min-width: 280px; max-width: 480px; text-align:center;
+  background: #131c2c; border: 2px solid #3d6ea0; border-radius: 14px;
+  padding: 16px 24px; cursor: pointer;
+  box-shadow: 0 12px 48px rgba(0,0,0,.7);
+  animation: sp-in .3s cubic-bezier(.2,1.4,.4,1);
+}
+.skill-popup.out { animation: sp-out .5s ease forwards; }
+.kp-body { font-size: 17px; font-weight: 600; color:#dce8f5; line-height: 1.6; }
+.kp-body b { color: var(--gold); }
+.kp-body .kp-big { font-size: 26px; font-weight: 900; }
+.kp-body .c-red.kp-big { color:#ff7b7b; }
+.kp-body .c-black.kp-big { color:#fff; }
+.kp-body .c-green.kp-big { color:#67d695; }
 
 /* ---------- 딜러 행동 팝업 ---------- */
 .action-popup {
