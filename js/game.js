@@ -43,6 +43,7 @@ function newRun(){
     rewardTitle: '',
   };
   B = null;
+  camFrom = null;
 }
 
 const hasT = id => G.trinkets.includes(id);
@@ -104,6 +105,7 @@ function render(){
   }
   lastScreen = scr;
   bindEvents();
+  if(scr==='map') updateMapCamera();
 }
 
 // 이벤트 위임: data-act(좌클릭) / data-ract(우클릭 또는 모바일 롱프레스) 속성 기반
@@ -172,12 +174,27 @@ function renderTitle(){
 }
 
 // ---------- 맵 ----------
+// 미래 층은 대분류만 노출 (슬더스식 안개)
+function nodeCategory(t){
+  if(t==='boss') return {icon:'👑', name:'보스'};
+  if(t==='elite') return {icon:'💀', name:'강적'};
+  if(t==='battle'||t==='highroller') return {icon:'⚔️', name:'전투'};
+  return {icon:'❓', name:'???'};
+}
+
 function renderMap(){
   const rows = G.map.map((layer, li)=>{
     const cls = li < G.layer ? 'done' : li === G.layer ? 'current' : 'future';
     const nodes = layer.map((t, ni)=>{
-      const nt = NODE_TYPES[t];
       const clickable = li === G.layer;
+      if(li > G.layer){
+        const cat = nodeCategory(t);
+        return `<div class="map-node ${cls} veiled">
+          <div class="node-icon">${cat.icon}</div>
+          <div class="node-name">${cat.name}</div>
+        </div>`;
+      }
+      const nt = NODE_TYPES[t];
       return `<div class="map-node ${cls} ${clickable?'clickable':''}" ${clickable?`data-act="enterNode" data-arg="${ni}"`:''}>
         <div class="node-icon">${nt.icon}</div>
         <div class="node-name">${nt.name}</div>
@@ -185,17 +202,45 @@ function renderMap(){
         <div class="node-desc">${nt.desc}</div>
       </div>`;
     }).join('');
-    return `<div class="map-layer">${nodes}</div>`;
+    return `<div class="map-layer" id="map-layer-${li}">${nodes}</div>`;
   }).join('<div class="map-arrow">▼</div>');
 
   return `
   <div class="screen map-screen">
     ${runHeader()}
     <h2 class="zone-title">구역 1 — 루주의 룰렛 홀</h2>
-    <p class="hint">다음 노드의 유형과 위험도를 보고 경로를 선택하세요.</p>
-    <div class="map-flow">${rows}</div>
+    <p class="hint">앞으로 갈 층은 갈래와 대분류만 보인다. 현재 층에서 경로를 선택하세요.</p>
+    <div class="map-viewport" id="map-viewport">
+      <div class="map-world" id="map-world">${rows}</div>
+    </div>
     ${buildPanel()}
   </div>`;
+}
+
+// 맵 카메라: 현재 층을 확대 상태로 중앙에 두고, 층 이동 시 부드럽게 이동
+let camFrom = null;
+function updateMapCamera(){
+  const vp = document.getElementById('map-viewport');
+  const world = document.getElementById('map-world');
+  if(!vp || !world) return;
+  const SCALE = 1.2;
+  const yFor = li => {
+    const el = document.getElementById('map-layer-'+li);
+    if(!el) return 0;
+    return vp.clientHeight/2 - SCALE*(el.offsetTop + el.offsetHeight/2);
+  };
+  const setT = (y, anim)=>{
+    world.classList.toggle('cam-anim', anim);
+    world.style.transform = `translateY(${y}px) scale(${SCALE})`;
+  };
+  if(camFrom!==null && camFrom!==G.layer){
+    setT(yFor(camFrom), false);
+    void world.offsetHeight; // 리플로우로 시작 위치 확정 후 애니메이션
+    setT(yFor(G.layer), true);
+  } else {
+    setT(yFor(G.layer), false);
+  }
+  camFrom = G.layer;
 }
 
 function runHeader(){
@@ -293,19 +338,21 @@ function startBattle(dealerId, mods={}){
     lastSettle: null,
   };
   if(preDmg>0) blog(`🗺️ 금고 설계도의 정보로 시작부터 금고에 ${fmt(preDmg)} 피해!`);
+  B.currentAction = rollDealerAction(); // 1턴부터 딜러가 행동한다
   B.nextAction = rollDealerAction();
   if(hasT('glasses')){
     applyColorReveal('딜러의 안경');
   }
   G.screen = 'battle';
   render();
+  setTimeout(()=>{ if(B && G.screen==='battle' && B.turn===1 && !B.spinning) showActionPopup(); }, 500);
 }
 
 function blog(msg){ B.log.unshift(msg); if(B.log.length>40) B.log.pop(); }
 
 function rollDealerAction(){
   if(B.dealer.tier==='boss') return bossAction();
-  const pool = B.dealer.actions;
+  const pool = B.dealer.actions.filter(a=>a!=='none'); // '대기' 제거 — 딜러는 매 턴 행동한다
   return DEALER_ACTIONS[choice(pool)];
 }
 
@@ -702,6 +749,13 @@ function confirmResult(){
   // 연승/연패
   if(net>0){ B.consecWins++; B.consecLosses=0; }
   else if(net<0){ B.consecLosses++; B.consecWins=0; }
+
+  // 턴 승리 보상: 무작위 기술 카드 1장
+  if(net>0){
+    const sk = choice(SKILLS);
+    G.skills.push(sk.id);
+    logLines.push(`🎴 턴 승리 보상 — 기술 카드 <b>${sk.name}</b> 획득!`);
+  }
 
   // 자원 회복 트리거
   if(m.redsense && rc==='red'){ B.focus = Math.min(G.maxFocus, B.focus+4); logLines.push('❤️ 붉은 예감: 포커스 +4.'); }
