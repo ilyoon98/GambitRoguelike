@@ -26,8 +26,9 @@ body {
   min-height: 100vh;
 }
 
-#app { max-width: 1180px; margin: 0 auto; padding: 16px; }
+#app { max-width: 1320px; margin: 0 auto; padding: 16px; }
 .screen { animation: fadein .25s ease; }
+.screen.no-anim { animation: none; }
 @keyframes fadein { from { opacity:0; transform:translateY(6px);} to {opacity:1; transform:none;} }
 
 b { color: var(--gold); }
@@ -109,10 +110,15 @@ b { color: var(--gold); }
 .vault-bar { position:relative; height: 26px; background:#0b0f14; border-radius: 6px; overflow:hidden; border:1px solid #333c49; }
 .vault-fill { height:100%; background: linear-gradient(90deg, #c9a227, #f2d060); transition: width .5s ease; }
 .vault-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size: 13px; font-weight:700; color:#fff; text-shadow: 0 1px 3px #000; }
-.dealer-actions { display:flex; gap:10px; margin-top: 8px; flex-wrap:wrap; }
-.act { font-size: 13px; padding: 3px 10px; border-radius: 6px; cursor: help; }
-.act.now { background:#3d2222; border:1px solid #6e3d3d; }
-.act.next { background:#22303d; border:1px solid #3d566e; color: var(--text-dim); }
+.dealer-actions { display:flex; gap:10px; margin-top: 10px; }
+.act { flex:1; padding: 8px 12px; border-radius: 8px; }
+.act.now { background:#3d2222; border:1px solid #7e4444; }
+.act.now.calm { background:#22303d; border:1px solid #3d566e; }
+.act.next { background:#1b2531; border:1px dashed #3d566e; opacity:.85; }
+.act-label { font-size: 13px; font-weight:600; }
+.act-desc { font-size: 12px; color:#c8b8a8; margin-top: 3px; line-height:1.5; }
+.act.next .act-desc { color: var(--text-dim); }
+.jammed { color:#6fd3ff; font-weight:700; font-size: 12px; }
 .house-rules { margin-top: 8px; display:flex; flex-direction:column; gap:2px; }
 .house-rules span { font-size: 12px; color:#e0b34c; }
 
@@ -122,8 +128,8 @@ b { color: var(--gold); }
 .pstat.small { font-size: 12px; }
 
 .battle-mid { display:flex; gap:14px; align-items:flex-start; }
-.board-wrap { flex: 1; background: linear-gradient(180deg, var(--felt-light), var(--felt)); border:2px solid #0a1f15; border-radius: 14px; padding: 14px; }
-.side-wrap { width: 340px; display:flex; flex-direction:column; gap:10px; }
+.board-wrap { flex: 1; background: linear-gradient(180deg, var(--felt-light), var(--felt)); border:2px solid #0a1f15; border-radius: 16px; padding: 18px; }
+.side-wrap { width: 360px; display:flex; flex-direction:column; gap:10px; }
 
 /* 결과 영역 */
 .result-area { text-align:center; padding: 6px 0 12px; min-height: 128px; }
@@ -138,19 +144,20 @@ b { color: var(--gold); }
 .spin-num.c-green { background: var(--green); }
 .result-hint { font-size: 13px; color: #bcd8c9; margin-top: 6px; }
 .post-actions { margin-top: 10px; display:flex; gap:10px; justify-content:center; }
+.auto-settle { font-size: 14px; color: var(--gold); padding: 8px 0; }
 
-/* 보드 */
+/* 보드 (가로형: 0 왼쪽, 12열 × 3행) */
 .board { display:flex; gap:8px; justify-content:center; }
-.board-zero { display:flex; flex-direction:column; gap:4px; justify-content:flex-start; }
-.board-grid { display:flex; flex-direction:column; gap:4px; }
-.board-row { display:flex; gap:4px; }
+.board-zero { display:flex; flex-direction:column; gap:6px; }
+.board-grid { display:flex; flex-direction:column; gap:6px; }
+.board-row { display:flex; gap:6px; }
 .num-cell {
-  position:relative; width: 52px; height: 34px; border-radius: 6px;
+  position:relative; width: 58px; height: 46px; border-radius: 8px;
   display:flex; align-items:center; justify-content:center;
-  font-weight:700; font-size: 14px; cursor:pointer; user-select:none;
-  border: 1px solid rgba(255,255,255,.14); transition: all .1s;
+  font-weight:800; font-size: 17px; cursor:pointer; user-select:none;
+  border: 1px solid rgba(255,255,255,.16); transition: all .1s;
 }
-.board-zero .num-cell { height: 46px; }
+.board-zero .num-cell { height:auto; flex:1; }
 .num-cell.c-red { background: var(--red); }
 .num-cell.c-black { background: var(--black-num); }
 .num-cell.c-green { background: var(--green); }
@@ -161,52 +168,77 @@ b { color: var(--gold); }
 .num-cell.has-bet { box-shadow: 0 0 0 2px var(--gold); }
 .picking .num-cell { outline: 1px dashed rgba(111,211,255,.4); }
 .chip-mark {
-  position:absolute; top:-7px; right:-6px; background: var(--gold); color:#241c05;
-  border-radius: 10px; font-size: 10px; padding: 1px 5px; font-weight:800; box-shadow: 0 1px 3px #000;
+  position:absolute; top:-9px; right:-7px; background: var(--gold); color:#241c05;
+  border-radius: 12px; font-size: 12px; padding: 2px 7px; font-weight:800; box-shadow: 0 1px 3px #000;
 }
 
 /* 외부 베팅 */
-.outside-bets { display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top: 12px; }
+.dozen-row { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top: 10px; }
+.outside-bets { display:grid; grid-template-columns: repeat(6, 1fr); gap:8px; margin-top: 8px; }
 .out-bet {
-  position:relative; background: rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.15);
-  border-radius: 8px; padding: 7px 10px; cursor:pointer; text-align:center; transition: all .1s;
+  position:relative; background: rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.18);
+  border-radius: 10px; padding: 12px 10px; cursor:pointer; text-align:center; transition: all .1s;
 }
-.out-bet:hover { border-color: var(--gold); }
-.out-bet.ob-red { border-color: rgba(214,69,69,.6); }
-.out-bet.ob-black { border-color: rgba(255,255,255,.28); background: rgba(0,0,0,.5); }
+.out-bet:hover { border-color: var(--gold); transform: scale(1.03); }
+.out-bet.ob-red { border-color: rgba(214,69,69,.7); background: rgba(214,69,69,.18); }
+.out-bet.ob-black { border-color: rgba(255,255,255,.3); background: rgba(0,0,0,.55); }
 .out-bet.blocked { opacity:.3; cursor:not-allowed; }
 .out-bet.has-bet { box-shadow: 0 0 0 2px var(--gold); }
-.ob-name { font-weight:700; font-size: 14px; }
-.ob-info { font-size: 11px; color:#bcd8c9; }
+.ob-name { font-weight:800; font-size: 17px; }
+.ob-info { font-size: 12px; color:#bcd8c9; margin-top: 2px; }
 
-.chip-row { display:flex; align-items:center; gap:6px; margin-top: 10px; }
-.chip-label { font-size: 12px; color:#bcd8c9; margin-right: 4px; }
+.chip-row { display:flex; align-items:center; gap:8px; margin-top: 12px; justify-content:center; }
+.chip-label { font-size: 14px; color:#bcd8c9; margin-right: 4px; }
 .chip-btn {
-  width: 46px; height: 32px; border-radius: 16px; border:1px solid #555; cursor:pointer;
-  background:#20262f; color: var(--text); font-weight:700; font-family: inherit;
+  width: 58px; height: 40px; border-radius: 20px; border:1px solid #555; cursor:pointer;
+  background:#20262f; color: var(--text); font-weight:800; font-size: 16px; font-family: inherit;
 }
 .chip-btn.sel { background: var(--gold); color:#241c05; border-color:#f0d878; }
+.chip-btn.allin { width: auto; padding: 0 12px; border-color:#8a3a3a; color:#ff9d9d; }
+.chip-btn.allin.sel { background: var(--red); color:#fff; border-color:#ff8080; }
 
-/* 사이드 패널 */
-.bet-list { background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
-.bet-list.empty { color: var(--text-dim); text-align:center; padding: 16px 12px; line-height:1.7; }
-.bet-head { font-weight:700; color: var(--gold); margin-bottom: 6px; }
-.bet-row { display:flex; align-items:center; gap:8px; padding: 3px 0; border-bottom: 1px dashed #262f3c; }
-.bet-name { flex:1; font-weight:600; }
-.bet-amt { color:#7ce38b; }
-.bet-prob { color: var(--text-dim); font-size: 11px; }
-.bet-x { background:none; border:none; color:#777; cursor:pointer; font-size: 13px; }
-.bet-x:hover { color: var(--danger); }
-
-.skill-bar { background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 10px 12px; }
-.skill-head { font-weight:700; color: var(--gold); font-size: 13px; margin-bottom: 6px; }
-.skill-btn {
-  margin: 2px; padding: 6px 10px; border-radius: 7px; border:1px solid #33517e;
-  background:#1d3252; color: var(--text); font-size: 13px; cursor:pointer; font-family:inherit; transition: all .12s;
+/* 보드 위 베팅 현황 바 */
+.stake-bar {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(212,175,55,.35);
 }
-.skill-btn:hover { border-color:#6fd3ff; }
-.skill-btn .cost { font-size: 11px; color:#6fd3ff; font-weight:700; }
-.skill-btn.used { opacity:.35; }
+.stake-bar.empty { border-color: rgba(255,255,255,.12); justify-content:center; }
+.stake-total { font-size: 16px; font-weight:700; color:#f0e6c8; white-space:nowrap; }
+.stake-total b { font-size: 19px; color:#7ce38b; }
+.stake-sub { font-size: 13px; font-weight:400; color:#9fc4b0; }
+.stake-hint { font-size: 13px; color:#9fc4b0; }
+.stake-pills { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+.stake-pill {
+  background:#132a1d; border:1px solid #2e9e5b; border-radius: 16px;
+  padding: 4px 12px; font-size: 13px; cursor:pointer; white-space:nowrap;
+}
+.stake-pill b { color:#7ce38b; }
+.stake-pill:hover { border-color: var(--danger); }
+.stake-pill:hover .pill-x { color: var(--danger); }
+.stake-pill.warn { border-color:#e0b34c; }
+.pill-x { color:#6a7a70; font-size: 12px; }
+.btn-clear {
+  background:none; border:1px solid #556072; border-radius: 8px; color: var(--text-dim);
+  font-size: 13px; padding: 5px 12px; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.btn-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+.skill-bar { background: var(--panel); border:1px solid #2a3340; border-radius: 10px; padding: 12px 14px; }
+.skill-head { font-weight:700; color: var(--gold); font-size: 14px; margin-bottom: 8px; }
+.skill-btn {
+  display:block; width:100%; text-align:left;
+  margin: 4px 0; padding: 9px 12px; border-radius: 9px; border:1px solid #33517e;
+  background:#1d3252; color: var(--text); cursor:pointer; font-family:inherit; transition: all .12s;
+}
+.skill-btn:hover { border-color:#6fd3ff; background:#234070; }
+.skill-btn .sk-top { display:block; font-size: 15px; font-weight:800; }
+.skill-btn .sk-desc { display:block; font-size: 12px; color:#9fb8d8; font-weight:400; margin-top: 3px; line-height: 1.45; }
+.skill-btn .cost { font-size: 12px; color:#6fd3ff; font-weight:700; }
+.skill-btn .sk-used { font-size: 11px; color:#e0b34c; font-weight:700; }
+.skill-btn .sk-count { color:#6fd3ff; font-size: 13px; }
+.skill-btn.used { opacity:.45; }
+.sk-empty { color: var(--text-dim); font-size: 13px; text-align:center; padding: 12px 6px; line-height: 1.7; }
 .trinket-row { margin-top: 8px; border-top: 1px dashed #2a3340; padding-top: 7px; }
 
 .log-panel {
@@ -245,6 +277,78 @@ b { color: var(--gold); }
 .end-screen .event-text { margin: 16px auto; text-align:center; }
 .end-stats { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin: 18px 0; font-size: 15px; color: var(--text-dim); }
 .end-screen .btn { margin-top: 10px; }
+
+/* ---------- 스핀 스트립 (펼쳐진 휠) ---------- */
+.strip-box { position: relative; max-width: 700px; margin: 0 auto; padding-top: 18px; }
+.strip-pointer {
+  position:absolute; top: -4px; left: 50%; transform: translateX(-50%);
+  font-size: 20px; color: var(--gold); z-index: 2; text-shadow: 0 2px 6px #000;
+}
+.strip-viewport {
+  overflow: hidden; border-radius: 10px;
+  border: 2px solid var(--gold-dim);
+  background: #0a0f14;
+  box-shadow: inset 24px 0 24px -18px #000, inset -24px 0 24px -18px #000;
+}
+.spin-strip {
+  display: flex;
+  transition: transform 2.5s cubic-bezier(.12,.72,.14,1);
+  will-change: transform;
+}
+.strip-tile {
+  flex: 0 0 62px; width: 62px; height: 64px;
+  display:flex; align-items:center; justify-content:center;
+  font-size: 22px; font-weight: 900; color:#fff;
+  border-right: 1px solid rgba(255,255,255,.12);
+}
+.strip-tile.dim { opacity:.25; }
+.strip-tile.c-red { background: var(--red); }
+.strip-tile.c-black { background: #1c222c; }
+.strip-tile.c-green { background: var(--green); }
+
+/* ---------- 딜러 행동 팝업 ---------- */
+.action-popup {
+  position: fixed; top: 30%; left: 50%; z-index: 84;
+  transform: translateX(-50%);
+  min-width: 280px; max-width: 420px; text-align:center;
+  background: #241418; border: 2px solid #a04848; border-radius: 14px;
+  padding: 14px 22px; cursor: pointer;
+  box-shadow: 0 12px 48px rgba(0,0,0,.7);
+  animation: sp-in .3s cubic-bezier(.2,1.4,.4,1);
+}
+.action-popup.out { animation: sp-out .5s ease forwards; }
+.ap-title { font-size: 18px; font-weight: 900; color:#ff9d9d; }
+.ap-desc { font-size: 14px; color:#e8d8d8; margin-top: 6px; line-height: 1.5; }
+
+/* ---------- 정산 팝업 ---------- */
+.settle-popup {
+  position: fixed; top: 16%; left: 50%; z-index: 85;
+  transform: translateX(-50%);
+  min-width: 300px; max-width: 420px;
+  background: var(--panel); border-radius: 14px; padding: 16px 20px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.7);
+  cursor: pointer;
+  animation: sp-in .3s cubic-bezier(.2,1.4,.4,1);
+}
+.settle-popup.win { border: 2px solid #3d8b57; }
+.settle-popup.lose { border: 2px solid #8b3d3d; }
+.settle-popup.out { animation: sp-out .5s ease forwards; }
+@keyframes sp-in { from { opacity:0; transform: translateX(-50%) scale(.7); } to { opacity:1; transform: translateX(-50%) scale(1); } }
+@keyframes sp-out { to { opacity:0; transform: translateX(-50%) translateY(-14px); } }
+.sp-top { display:flex; align-items:center; justify-content:center; gap:14px; }
+.sp-ball {
+  display:inline-flex; align-items:center; justify-content:center;
+  width: 48px; height: 48px; border-radius: 50%;
+  font-size: 20px; font-weight: 900; color:#fff; border: 2px solid var(--gold);
+}
+.sp-ball.c-red { background: var(--red); }
+.sp-ball.c-black { background: #14181f; }
+.sp-ball.c-green { background: var(--green); }
+.sp-net { font-size: 30px; font-weight: 900; }
+.settle-popup.win .sp-net { color:#7ce38b; }
+.settle-popup.lose .sp-net { color:#ff8080; }
+.sp-dmg { text-align:center; margin-top: 8px; font-size: 15px; font-weight:700; color: var(--gold); }
+.sp-lines { margin-top: 10px; font-size: 12px; color:#c3ccd8; line-height: 1.7; border-top: 1px dashed #2a3340; padding-top: 8px; }
 
 /* ---------- 버전 배지 ---------- */
 .version-badge {

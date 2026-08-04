@@ -19,7 +19,7 @@ function newRun(){
     screen: 'map',
     money: 100,
     maxFocus: 10,
-    skills: ['magnet','double','colorsight'],
+    skills: [],   // 1회용 기술 카드 (중복 보유 가능, 사용 시 소모, 미사용분은 이월)
     trinkets: [],
     contracts: [],
     debt: 0,
@@ -48,6 +48,10 @@ function newRun(){
 const hasT = id => G.trinkets.includes(id);
 const hasC = id => G.contracts.includes(id);
 const hasS = id => G.skills.includes(id);
+function consumeSkill(id){
+  const i = G.skills.indexOf(id);
+  if(i>=0) G.skills.splice(i,1);
+}
 
 function gainTrinket(id){
   if(G.trinkets.includes(id)) return false;
@@ -83,6 +87,7 @@ function genMap(){
 }
 
 // ---------- 화면 렌더 디스패치 ----------
+let lastScreen = null;
 function render(){
   const screens = {
     title: renderTitle, map: renderMap, battle: renderBattle,
@@ -90,18 +95,47 @@ function render(){
     lounge: renderLounge, loan: renderLoan,
     gameover: renderGameOver, victory: renderVictory,
   };
-  $app().innerHTML = screens[G ? G.screen : 'title']();
+  const scr = G ? G.screen : 'title';
+  $app().innerHTML = screens[scr]();
+  // 같은 화면 안에서의 갱신은 페이드인 애니메이션 생략 (화면 껌뻑임 방지)
+  if(scr === lastScreen){
+    const el = $app().querySelector('.screen');
+    if(el) el.classList.add('no-anim');
+  }
+  lastScreen = scr;
   bindEvents();
 }
 
-// 이벤트 위임: data-act 속성 기반
+// 이벤트 위임: data-act(좌클릭) / data-ract(우클릭 또는 모바일 롱프레스) 속성 기반
+let lastLongPress = 0;
 function bindEvents(){
   $app().querySelectorAll('[data-act]').forEach(el=>{
     el.addEventListener('click', ()=>{
+      if(Date.now() - lastLongPress < 600) return; // 롱프레스 직후 클릭 무시
       const act = el.dataset.act;
       const arg = el.dataset.arg;
       ACTIONS[act] && ACTIONS[act](arg);
     });
+    if(el.dataset.ract){
+      el.addEventListener('contextmenu', e=>{
+        e.preventDefault();
+        if(Date.now() - lastLongPress < 600) return; // 롱프레스와 중복 방지
+        const ract = el.dataset.ract;
+        ACTIONS[ract] && ACTIONS[ract](el.dataset.arg);
+      });
+      // 모바일: 길게 누르면 우클릭과 동일하게 동작
+      let lpTimer = null;
+      el.addEventListener('touchstart', ()=>{
+        lpTimer = setTimeout(()=>{
+          lpTimer = null;
+          lastLongPress = Date.now();
+          const ract = el.dataset.ract;
+          ACTIONS[ract] && ACTIONS[ract](el.dataset.arg);
+        }, 450);
+      }, {passive:true});
+      ['touchend','touchmove','touchcancel'].forEach(ev=>
+        el.addEventListener(ev, ()=>{ if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; } }, {passive:true}));
+    }
   });
 }
 
@@ -174,12 +208,14 @@ function runHeader(){
 }
 
 function buildPanel(){
-  const sk = G.skills.map(id=>{ const s=SKILLS.find(x=>x.id===id); return `<span class="tag skill" title="${s.desc}">${s.name}</span>`; }).join('');
+  const counts = {};
+  G.skills.forEach(id=>counts[id]=(counts[id]||0)+1);
+  const sk = Object.entries(counts).map(([id,n])=>{ const s=SKILLS.find(x=>x.id===id); return `<span class="tag skill" title="${s.desc}">${s.name}${n>1?` ×${n}`:''}</span>`; }).join('') || '<span class="none">없음</span>';
   const tr = G.trinkets.map(id=>{ const t=TRINKETS.find(x=>x.id===id); return `<span class="tag trinket" title="${t.desc}">${t.name}</span>`; }).join('') || '<span class="none">없음</span>';
   const ct = G.contracts.map(id=>{ const c=CONTRACTS.find(x=>x.id===id); return `<span class="tag contract" title="${c.desc}">${c.name}</span>`; }).join('') || '<span class="none">없음</span>';
   return `<div class="build-panel">
-    <div><b>기술</b> ${sk}</div>
-    <div><b>장신구</b> ${tr}</div>
+    <div><b>기술 카드</b> ${sk}</div>
+    <div><b>패시브</b> ${tr}</div>
     <div><b>계약</b> ${ct}</div>
   </div>`;
 }
@@ -349,7 +385,8 @@ function placeBet(type, target){
   if(B.phase!=='bet' || B.spinning) return;
   const blocked = betBlocked(type);
   if(blocked){ blog(`⛔ ${blocked}`); render(); return; }
-  const amt = B.chip;
+  const amt = B.chip==='all' ? Math.max(0, G.money - totalStaked()) : B.chip;
+  if(amt<=0){ blog('⛔ 남은 자금이 없다.'); render(); return; }
   if(totalStaked() + amt > G.money){ blog('⛔ 자금이 부족하다. 베팅 총액은 보유 자금을 넘을 수 없다.'); render(); return; }
   const key = type + (target!=null ? ':'+target : '');
   const existing = B.bets.find(b=>b.key===key);
@@ -358,7 +395,23 @@ function placeBet(type, target){
   render();
 }
 function removeBet(key){
+  if(B.phase!=='bet' || B.spinning) return;
   B.bets = B.bets.filter(b=>b.key!==key);
+  render();
+}
+// 우클릭: 해당 위치에서 칩 단위만큼 회수
+function unbet(type, target){
+  if(B.phase!=='bet' || B.spinning) return;
+  const key = type + (target!=null ? ':'+target : '');
+  const b = B.bets.find(x=>x.key===key);
+  if(!b) return;
+  b.amount -= (B.chip==='all' ? b.amount : B.chip);
+  if(b.amount<=0) B.bets = B.bets.filter(x=>x!==b);
+  render();
+}
+function clearBets(){
+  if(B.phase!=='bet' || B.spinning) return;
+  B.bets = [];
   render();
 }
 
@@ -369,6 +422,7 @@ function skillCost(s){
 }
 function canUseSkill(s){
   const m = B.turnMods;
+  if(!hasS(s.id)) return false;
   if(B.spinning) return false;
   if(s.phase==='post') return B.phase==='post' && !usedFlag(s.id);
   if(B.phase!=='bet') return false;
@@ -416,6 +470,7 @@ function useSkill(id){
     doRespin(cost); return;
   }
   B.focus -= cost;
+  consumeSkill(s.id); // 1회용: 사용 즉시 카드 소모
   switch(s.id){
     case 'double': m.doubled = true; blog('✨ 더블 베팅: 이번 턴 가장 큰 베팅의 배당 2배.'); break;
     case 'blackcat': m.blackcat = true; blog('🐈‍⬛ 검은 고양이: 검정 적중 시 다음 턴 배당 +50%.'); break;
@@ -463,6 +518,7 @@ function pickMagnetNumber(n){
   const cost = skillCost(s);
   if(B.focus < cost){ B.pickingNumber=false; render(); return; }
   B.focus -= cost;
+  consumeSkill('magnet');
   const idx = WHEEL_ORDER.indexOf(n);
   const set = new Set();
   for(let k=-4;k<=4;k++) set.add(WHEEL_ORDER[(idx+k+WHEEL_ORDER.length)%WHEEL_ORDER.length]);
@@ -473,6 +529,35 @@ function pickMagnetNumber(n){
 }
 
 // ---------- 스핀 ----------
+// 휠에 표시할 숫자 목록 (물리적 순서, 제거된 숫자 제외)
+function wheelNumbers(){
+  let ns = WHEEL_ORDER.slice();
+  if(B.doubleZero) ns.push(DOUBLE_ZERO);
+  return ns.filter(n=>!B.removed.has(n));
+}
+
+const SPIN_MS = 2500;
+const TILE_W = 62; // 스트립 타일 폭 (css .strip-tile와 일치해야 함)
+
+// 결과가 중앙 포인터에 멈추는 가로 숫자 스트립 (휠을 펼친 형태)
+function buildSpinStrip(result){
+  const ns = wheelNumbers();
+  const reps = 6;
+  const seq = [];
+  for(let i=0;i<reps;i++) seq.push(...ns);
+  const target = (reps-1)*ns.length + ns.indexOf(result);
+  return { seq, target };
+}
+
+function startStripAnim(){
+  const strip = document.getElementById('spin-strip');
+  if(!strip || !B.spinStrip) return;
+  const vp = strip.parentElement.clientWidth;
+  const jitter = (rnd()-0.5) * TILE_W * 0.5; // 매번 정중앙에 서지 않게
+  const offset = B.spinStrip.target*TILE_W + TILE_W/2 - vp/2 + jitter;
+  setTimeout(()=>{ strip.style.transform = `translateX(${-offset}px)`; }, 60);
+}
+
 function trySpin(){
   if(B.phase!=='bet' || B.spinning) return;
   if(B.bets.length===0){ blog('⛔ 베팅을 먼저 하세요.'); render(); return; }
@@ -481,32 +566,39 @@ function trySpin(){
   if(under){ blog(`⛔ 모든 베팅은 최소 ${fmt(min)}칩 이상이어야 한다.`); render(); return; }
   if(totalStaked() > G.money){ blog('⛔ 베팅 총액이 자금을 초과한다.'); render(); return; }
 
-  B.spinning = true;
-  render();
   const cands = candidateSet();
   let result = choice(cands);
   if(B.turnMods.greenshield && (result===0 || result===DOUBLE_ZERO)){
     blog(`🟢 그린 실드 발동! ${numLabel(result)} → 재스핀.`);
     result = choice(cands);
   }
-  // 스핀 연출
-  const cells = candidateSet();
-  let ticks = 0;
-  const el = () => document.getElementById('spin-display');
-  const iv = setInterval(()=>{
-    ticks++;
-    const n = choice(cells);
-    const e = el();
-    if(e){ e.textContent = numLabel(n); e.className = 'spin-num c-'+numColor(n); }
-    if(ticks>=14){
-      clearInterval(iv);
-      B.spinning = false;
-      B.result = result;
-      B.phase = 'post';
-      blog(`🎱 공이 멈췄다: <b class="c-${numColor(result)}">${numLabel(result)}</b>`);
-      render();
-    }
-  }, 80);
+  B.spinning = true;
+  B.spinStrip = buildSpinStrip(result);
+  render();
+  startStripAnim();
+  setTimeout(()=>{
+    B.spinning = false;
+    B.spinStrip = null;
+    B.result = result;
+    B.phase = 'post';
+    blog(`🎱 공이 멈췄다: <b class="c-${numColor(result)}">${numLabel(result)}</b>`);
+    render();
+    scheduleAutoConfirm();
+  }, SPIN_MS + 500);
+}
+
+// 리스핀 선택지가 없으면 결과를 잠시 보여준 뒤 자동 정산
+function canRespinNow(){
+  if(!hasS('respin')) return false;
+  const freeAvail = hasT('brokendice') && !B.freeRespinUsed;
+  return freeAvail || B.focus>=4;
+}
+function scheduleAutoConfirm(){
+  if(canRespinNow()) return;
+  const turn = B.turn;
+  setTimeout(()=>{
+    if(B && B.phase==='post' && B.turn===turn && !B.spinning) confirmResult();
+  }, 1100);
 }
 
 function doRespin(cost){
@@ -516,10 +608,12 @@ function doRespin(cost){
     if(B.focus < cost){ blog('⛔ 포커스 부족.'); render(); return; }
     B.focus -= cost;
   }
+  consumeSkill('respin');
   const cands = candidateSet();
   B.result = choice(cands);
   blog(`🔄 리스핀${free?' (깨진 주사위: 무료)':''}! 새 결과: <b class="c-${numColor(B.result)}">${numLabel(B.result)}</b>`);
   render();
+  scheduleAutoConfirm();
 }
 
 // ---------- 정산 ----------
@@ -645,6 +739,7 @@ function confirmResult(){
 
   B.history.push(r);
   B.lastSettle = { r, profit, loss, net, dmg, lines: results.concat(logLines) };
+  showSettlePopup(B.lastSettle);
   blog(`— ${B.turn}턴 정산: ${net>=0?'+':''}${fmt(net)}칩 ${dmg>0?`/ 금고 피해 ${fmt(dmg)}`:''}`);
   results.concat(logLines).forEach(l=>blog(l));
   G.turnCount++;
@@ -675,10 +770,54 @@ function confirmResult(){
   B.currentAction = B.nextAction;
   B.nextAction = rollDealerAction();
   render();
+  // 정산 팝업이 사라진 뒤 새 턴의 딜러 행동을 팝업으로 공지
+  const announcedTurn = B.turn;
+  setTimeout(()=>{
+    if(B && G.screen==='battle' && B.turn===announcedTurn && !B.spinning) showActionPopup();
+  }, 2700);
 }
 
 function betName(b){
   return b.type==='straight' ? `스트레이트 ${numLabel(b.target)}` : BET_TYPES[b.type].name;
+}
+
+// ---------- 딜러 행동 팝업 ----------
+function showActionPopup(){
+  const a = B && B.currentAction;
+  if(!a || a.id==='none') return;
+  const old = document.getElementById('action-popup');
+  if(old) old.remove();
+  const div = document.createElement('div');
+  div.id = 'action-popup';
+  div.className = 'action-popup';
+  div.innerHTML = `
+    <div class="ap-title">🎩 딜러 행동 — ${a.name}</div>
+    <div class="ap-desc">${a.desc}</div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', ()=>div.remove());
+  setTimeout(()=>{ div.classList.add('out'); }, 2000);
+  setTimeout(()=>{ div.remove(); }, 2500);
+}
+
+// ---------- 정산 팝업 ----------
+function showSettlePopup(s){
+  const old = document.getElementById('settle-popup');
+  if(old) old.remove();
+  const win = s.net>=0;
+  const div = document.createElement('div');
+  div.id = 'settle-popup';
+  div.className = 'settle-popup ' + (win?'win':'lose');
+  div.innerHTML = `
+    <div class="sp-top">
+      <span class="sp-ball c-${numColor(s.r)}">${numLabel(s.r)}</span>
+      <span class="sp-net">${win?'+':''}${fmt(s.net)}칩</span>
+    </div>
+    ${s.dmg>0?`<div class="sp-dmg">🏦 금고 피해 ${fmt(s.dmg)}</div>`:''}
+    <div class="sp-lines">${s.lines.map(l=>`<div>${l}</div>`).join('')}</div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', ()=>div.remove());
+  setTimeout(()=>{ div.classList.add('out'); }, 2100);
+  setTimeout(()=>{ div.remove(); }, 2600);
 }
 
 // ---------- 전투 종료 ----------
@@ -706,14 +845,15 @@ function winBattle(){
 }
 
 function rollRewardChoices(kindFilter){
-  const pool = [];
-  SKILLS.forEach(s=>{ if(!G.skills.includes(s.id)) pool.push({kind:'skill', id:s.id}); });
-  if(kindFilter!=='skill'){
-    TRINKETS.forEach(t=>{ if(!G.trinkets.includes(t.id)) pool.push({kind:'trinket', id:t.id}); });
+  // 이벤트 전용: 기술 카드 3종 중 택1 (중복 보유 가능)
+  if(kindFilter==='skill'){
+    return shuffle(SKILLS.map(s=>({kind:'skill', id:s.id}))).slice(0,3);
   }
-  let p = shuffle(pool);
-  if(kindFilter==='skill') p = p.filter(c=>c.kind==='skill');
-  return p.slice(0,3);
+  // 전투 클리어 보상: 패시브(장신구)만
+  const pool = TRINKETS.filter(t=>!G.trinkets.includes(t.id)).map(t=>({kind:'trinket', id:t.id}));
+  const p = shuffle(pool).slice(0,3);
+  while(p.length<3) p.push({kind:'money', amount:40+p.length*5}); // 풀 소진 대비
+  return p;
 }
 
 function gameOver(){
@@ -750,8 +890,14 @@ function renderBattle(){
         <div class="vault-bar"><div class="vault-fill" style="width:${vaultPct}%"></div>
           <span class="vault-text">🏦 금고 ${fmt(Math.max(0,B.vault))} / ${fmt(B.maxVault)}</span></div>
         <div class="dealer-actions">
-          <span class="act now" title="${B.currentAction.desc}">이번 턴: <b>${B.currentAction.name}</b>${B.turnMods.jam?' (무효화됨)':''}</span>
-          <span class="act next" title="${B.nextAction.desc}">다음 예고: <b>${B.nextAction.name}</b></span>
+          <div class="act now ${B.currentAction.id==='none'?'calm':''}">
+            <div class="act-label">이번 턴 딜러 행동 · <b>${B.currentAction.name}</b>${B.turnMods.jam?' <span class="jammed">무효화됨</span>':''}</div>
+            <div class="act-desc">${B.currentAction.desc}</div>
+          </div>
+          <div class="act next">
+            <div class="act-label">다음 턴 예고 · <b>${B.nextAction.name}</b></div>
+            <div class="act-desc">${B.nextAction.desc}</div>
+          </div>
         </div>
         ${rules.length?`<div class="house-rules">${rules.map(r=>`<span>⚠ ${r}</span>`).join('')}</div>`:''}
       </div>
@@ -769,9 +915,9 @@ function renderBattle(){
         ${renderResultArea()}
         ${renderBoard(cands)}
         ${renderOutsideBets()}
+        ${renderStakeBar(min)}
       </div>
       <div class="side-wrap">
-        ${renderBetList(min)}
         ${renderSkillBar()}
         <div class="log-panel">${B.log.slice(0,14).map(l=>`<div class="log-line">${l}</div>`).join('')}</div>
       </div>
@@ -779,21 +925,55 @@ function renderBattle(){
   </div>`;
 }
 
+// 보드 하단: 현재 베팅 현황 (한눈에)
+function renderStakeBar(min){
+  const canEdit = B.phase==='bet' && !B.spinning;
+  if(B.bets.length===0){
+    return `<div class="stake-bar empty">
+      <span class="stake-total">아직 베팅 없음</span>
+      <span class="stake-hint">숫자나 베팅 칸 클릭 = 칩 추가 · 우클릭/길게 = 회수 · 여러 곳 동시 베팅 가능</span>
+    </div>`;
+  }
+  const pills = B.bets.map(b=>{
+    const {p} = betProb(b.type, b.target);
+    const warn = b.amount < min;
+    return `<span class="stake-pill ${warn?'warn':''}" ${canEdit?`data-act="removeBet" data-arg="${b.key}"`:''} title="적중 확률 ${Math.round(p*100)}%${warn?' · 최소 베팅 미달':''}">
+      ${betName(b)} <b>${fmt(b.amount)}</b>${warn?' ⚠':''}${canEdit?' <span class="pill-x">✕</span>':''}
+    </span>`;
+  }).join('');
+  return `<div class="stake-bar">
+    <span class="stake-total">🪙 총 베팅 <b>${fmt(totalStaked())}</b>칩 <span class="stake-sub">/ 자금 ${fmt(G.money)}</span></span>
+    <span class="stake-pills">${pills}</span>
+    ${canEdit?`<button class="btn-clear" data-act="clearBets">모두 취소</button>`:''}
+  </div>`;
+}
+
 function renderResultArea(){
-  if(B.spinning){
-    return `<div class="result-area"><div id="spin-display" class="spin-num">?</div><div class="result-hint">공이 구른다…</div></div>`;
+  if(B.spinning && B.spinStrip){
+    const cands = new Set(candidateSet());
+    const tiles = B.spinStrip.seq.map(n=>
+      `<div class="strip-tile c-${numColor(n)} ${cands.has(n)?'':'dim'}">${numLabel(n)}</div>`).join('');
+    return `<div class="result-area spinning">
+      <div class="strip-box">
+        <div class="strip-pointer">▼</div>
+        <div class="strip-viewport"><div id="spin-strip" class="spin-strip">${tiles}</div></div>
+      </div>
+    </div>`;
   }
   if(B.phase==='post'){
     const r = B.result;
     const respinSkill = hasS('respin');
     const freeAvail = hasT('brokendice') && !B.freeRespinUsed;
     const canRespin = respinSkill && (freeAvail || B.focus>=4);
+    const auto = !canRespin;
     return `<div class="result-area">
       <div class="spin-num c-${numColor(r)}">${numLabel(r)}</div>
       <div class="result-hint">${numColor(r)==='red'?'빨강':numColor(r)==='black'?'검정':'초록'} · ${r>=1&&r<=36?(r%2?'홀수':'짝수'):'-'}</div>
       <div class="post-actions">
-        ${respinSkill?`<button class="btn ${canRespin?'':'disabled'}" data-act="respin">🔄 리스핀 ${freeAvail?'(무료)':'(4 포커스)'}</button>`:''}
-        <button class="btn gold" data-act="confirm">결과 확정</button>
+        ${auto
+          ? `<span class="auto-settle">⏳ 자동 정산 중…</span>`
+          : `${respinSkill?`<button class="btn ${canRespin?'':'disabled'}" data-act="respin">🔄 리스핀 ${freeAvail?'(무료)':'(4 포커스)'}</button>`:''}
+             <button class="btn gold" data-act="confirm">결과 확정</button>`}
       </div>
     </div>`;
   }
@@ -818,13 +998,16 @@ function renderBoard(cands){
     const dim = !candSet.has(n) && !removed;
     const magnetOn = B.turnMods.magnet && B.turnMods.magnet.has(n);
     return `<div class="num-cell c-${numColor(n)} ${removed?'removed':''} ${dim?'dim':''} ${magnetOn?'magnet':''} ${bet?'has-bet':''}"
-      data-act="${B.pickingNumber?'pickMagnet':'betNum'}" data-arg="${n}">
+      data-act="${B.pickingNumber?'pickMagnet':'betNum'}" ${B.pickingNumber?'':'data-ract="unbetNum"'} data-arg="${n}">
       ${numLabel(n)}${bet?`<span class="chip-mark">${fmt(bet.amount)}</span>`:''}
     </div>`;
   };
+  // 실제 룰렛 테이블처럼 가로 배치: 12열 × 3행 (위 행이 3,6,…,36)
   let rows = '';
-  for(let r=0;r<12;r++){
-    rows += `<div class="board-row">${[1,2,3].map(c=>cell(r*3+c)).join('')}</div>`;
+  for(let r=0;r<3;r++){
+    const cells = [];
+    for(let c=1;c<=12;c++) cells.push(cell(3*c - r));
+    rows += `<div class="board-row">${cells.join('')}</div>`;
   }
   return `<div class="board">
     <div class="board-zero">${cell(0)}${B.doubleZero?cell(DOUBLE_ZERO):''}</div>
@@ -833,7 +1016,6 @@ function renderBoard(cands){
 }
 
 function renderOutsideBets(){
-  const outs = ['red','black','odd','even','low','high','dozen1','dozen2','dozen3'];
   const btn = t => {
     const bt = BET_TYPES[t];
     const {p} = betProb(t, null);
@@ -842,52 +1024,34 @@ function renderOutsideBets(){
     let pay = bt.payout;
     if(t.startsWith('dozen') && hasT('dozenmap')) pay = 2.5;
     return `<div class="out-bet ${t==='red'?'ob-red':t==='black'?'ob-black':''} ${blocked?'blocked':''} ${bet?'has-bet':''}"
-      data-act="betOut" data-arg="${t}" title="${blocked||''}">
+      data-act="betOut" data-ract="unbetOut" data-arg="${t}" title="${blocked||''}">
       <div class="ob-name">${bt.name}</div>
       <div class="ob-info">${Math.round(p*100)}% · ${pay}:1</div>
       ${bet?`<span class="chip-mark">${fmt(bet.amount)}</span>`:''}
     </div>`;
   };
-  const chips = [5,10,25,50,100].map(v=>
-    `<button class="chip-btn ${B.chip===v?'sel':''}" data-act="setChip" data-arg="${v}">${v}</button>`).join('');
-  return `<div class="outside-bets">${outs.map(btn).join('')}</div>
+  const chips = [5,10,25,50,100,'all'].map(v=>
+    `<button class="chip-btn ${v==='all'?'allin':''} ${B.chip===v?'sel':''}" data-act="setChip" data-arg="${v}">${v==='all'?'올인':v}</button>`).join('');
+  return `<div class="dozen-row">${['dozen1','dozen2','dozen3'].map(btn).join('')}</div>
+    <div class="outside-bets">${['red','black','odd','even','low','high'].map(btn).join('')}</div>
     <div class="chip-row"><span class="chip-label">칩 단위</span>${chips}</div>`;
 }
 
-function renderBetList(min){
-  if(B.bets.length===0) return `<div class="bet-list empty">아직 베팅이 없다.<br><span class="small">보드의 숫자나 아래 베팅 버튼을 클릭 (현재 칩 단위만큼 베팅)</span></div>`;
-  const rows = B.bets.map(b=>{
-    const {p} = betProb(b.type, b.target);
-    let pay = BET_TYPES[b.type].payout;
-    if(b.type==='straight' && B.turnMods.neighbor) pay = 11;
-    if(b.type==='straight' && hasC('gamblersoul')) pay = 50;
-    if(b.type.startsWith('dozen') && hasT('dozenmap')) pay = 2.5;
-    const ev = p*b.amount*pay - (1-p)*b.amount;
-    const warn = b.amount < min ? ' ⚠최소미달' : '';
-    return `<div class="bet-row">
-      <span class="bet-name">${betName(b)}</span>
-      <span class="bet-amt">${fmt(b.amount)}칩${warn}</span>
-      <span class="bet-prob">${Math.round(p*100)}% · EV ${ev>=0?'+':''}${fmt(ev)}</span>
-      <button class="bet-x" data-act="removeBet" data-arg="${b.key}">✕</button>
-    </div>`;
-  }).join('');
-  return `<div class="bet-list">
-    <div class="bet-head">베팅 (총 ${fmt(totalStaked())}칩)</div>${rows}
-  </div>`;
-}
-
 function renderSkillBar(){
-  const btns = G.skills.map(id=>{
+  const counts = {};
+  G.skills.forEach(id=>counts[id]=(counts[id]||0)+1);
+  const btns = Object.keys(counts).map(id=>{
     const s = SKILLS.find(x=>x.id===id);
     const cost = skillCost(s);
     const ok = canUseSkill(s);
     const used = usedFlag(s.id) || (s.id==='breath'&&B.usedBreath>=2);
-    return `<button class="skill-btn ${ok?'':'disabled'} ${used?'used':''}" data-act="useSkill" data-arg="${s.id}" title="${s.desc}">
-      ${s.name} <span class="cost">${cost}F</span>
+    return `<button class="skill-btn ${ok?'':'disabled'} ${used?'used':''}" data-act="useSkill" data-arg="${s.id}">
+      <span class="sk-top">${s.name}${counts[id]>1?` <span class="sk-count">×${counts[id]}</span>`:''} <span class="cost">${cost}F</span>${used?' <span class="sk-used">사용됨</span>':''}</span>
+      <span class="sk-desc">${s.desc}</span>
     </button>`;
-  }).join('');
+  }).join('') || `<div class="sk-empty">기술 카드 없음<br><span class="small">암시장에서 사거나 이벤트로 얻는다. 1회용이며, 안 쓴 카드는 다음 전투로 이월.</span></div>`;
   const tr = G.trinkets.map(id=>{ const t=TRINKETS.find(x=>x.id===id); return `<span class="tag trinket" title="${t.desc}">${t.name}</span>`; }).join('');
-  return `<div class="skill-bar"><div class="skill-head">기술 (포커스 소비)</div>${btns}
+  return `<div class="skill-bar"><div class="skill-head">기술 카드 (1회용 · 포커스 소비)</div>${btns}
     ${tr?`<div class="trinket-row">${tr}</div>`:''}</div>`;
 }
 
@@ -896,9 +1060,16 @@ function renderSkillBar(){
 // ============================================================
 function renderReward(){
   const cards = G.rewardChoices.map((c,i)=>{
+    if(c.kind==='money'){
+      return `<div class="pick-card" data-act="pickReward" data-arg="${i}">
+        <div class="pick-kind">💰 칩</div>
+        <div class="pick-name">칩 주머니</div>
+        <div class="pick-desc">칩 ${fmt(c.amount)}개를 받는다.</div>
+      </div>`;
+    }
     const item = c.kind==='skill' ? SKILLS.find(s=>s.id===c.id) : TRINKETS.find(t=>t.id===c.id);
     return `<div class="pick-card" data-act="pickReward" data-arg="${i}">
-      <div class="pick-kind">${c.kind==='skill'?'🎴 기술':'💍 장신구'}</div>
+      <div class="pick-kind">${c.kind==='skill'?'🎴 기술 카드 (1회용)':'💍 패시브 · 장신구'}</div>
       <div class="pick-name">${item.name}${c.kind==='skill'?` <span class="cost">${item.cost}F</span>`:''}</div>
       <div class="pick-desc">${item.desc}</div>
     </div>`;
@@ -915,10 +1086,11 @@ function renderReward(){
 
 function openShop(){
   const items = [];
-  const skills = shuffle(SKILLS.filter(s=>!G.skills.includes(s.id))).slice(0,2);
+  // 기술 카드는 1회용이라 보유 여부와 무관하게 판매 (중복 구매 가능)
+  const skills = shuffle(SKILLS.slice()).slice(0,3);
   const trinkets = shuffle(TRINKETS.filter(t=>!G.trinkets.includes(t.id))).slice(0,2);
   const contracts = shuffle(CONTRACTS.filter(c=>!G.contracts.includes(c.id))).slice(0,1);
-  skills.forEach(s=>items.push({kind:'skill', id:s.id, price:45+ri(3)*5}));
+  skills.forEach(s=>items.push({kind:'skill', id:s.id, price:20+ri(4)*5}));
   trinkets.forEach(t=>items.push({kind:'trinket', id:t.id, price:55+ri(4)*5}));
   contracts.forEach(c=>items.push({kind:'contract', id:c.id, price:25}));
   G.shopItems = items;
@@ -939,7 +1111,7 @@ function renderShop(){
     const price = shopPrice(it);
     const free = G.freeBuys>0;
     const afford = free || G.money > price;
-    const kindLabel = it.kind==='skill'?'🎴 기술':it.kind==='trinket'?'💍 장신구':'📜 계약';
+    const kindLabel = it.kind==='skill'?'🎴 기술 카드 (1회용)':it.kind==='trinket'?'💍 패시브 · 장신구':'📜 계약';
     return `<div class="pick-card ${afford?'':'cant'}" data-act="buyItem" data-arg="${i}">
       <div class="pick-kind">${kindLabel}</div>
       <div class="pick-name">${item.name}</div>
@@ -1135,8 +1307,11 @@ const ACTIONS = {
   // 전투
   betNum(n){ placeBet('straight', Number(n)); },
   betOut(t){ placeBet(t, null); },
-  setChip(v){ B.chip = Number(v); render(); },
+  setChip(v){ B.chip = v==='all' ? 'all' : Number(v); render(); },
   removeBet(key){ removeBet(key); },
+  unbetNum(n){ unbet('straight', Number(n)); },
+  unbetOut(t){ unbet(t, null); },
+  clearBets(){ clearBets(); },
   useSkill(id){ useSkill(id); },
   pickMagnet(n){ pickMagnetNumber(n); },
   spin(){ trySpin(); },
@@ -1147,7 +1322,8 @@ const ACTIONS = {
   pickReward(i){
     const c = G.rewardChoices[Number(i)];
     if(c.kind==='skill') G.skills.push(c.id);
-    else gainTrinket(c.id);
+    else if(c.kind==='trinket') gainTrinket(c.id);
+    else if(c.kind==='money') G.money += c.amount;
     advanceLayer();
   },
   skipReward(){ advanceLayer(); },
