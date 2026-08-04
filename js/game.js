@@ -766,15 +766,26 @@ function confirmResult(){
   B.bets = [];
   B.turnMods = freshMods();
   B.result = null;
-  B.phase = 'bet';
   B.currentAction = B.nextAction;
   B.nextAction = rollDealerAction();
-  render();
-  // 정산 팝업이 사라진 뒤 새 턴의 딜러 행동을 팝업으로 공지
-  const announcedTurn = B.turn;
-  setTimeout(()=>{
-    if(B && G.screen==='battle' && B.turn===announcedTurn && !B.spinning) showActionPopup();
-  }, 2700);
+
+  // 방해 행동이 있으면 짧은 '딜러 턴' 연출 단계를 거친다: 정산 → 딜러의 수 → 내 턴
+  if(B.currentAction.id!=='none'){
+    B.phase = 'dealer';
+    render();
+    setTimeout(()=>{
+      if(!B || G.screen!=='battle' || B.phase!=='dealer') return;
+      showActionPopup();
+      setTimeout(()=>{
+        if(!B || G.screen!=='battle' || B.phase!=='dealer') return;
+        B.phase = 'bet';
+        render();
+      }, 1400);
+    }, 2000); // 정산 팝업이 걷힐 때쯤 등장
+  } else {
+    B.phase = 'bet';
+    render();
+  }
 }
 
 function betName(b){
@@ -794,7 +805,11 @@ function showActionPopup(){
     <div class="ap-title">🎩 딜러 행동 — ${a.name}</div>
     <div class="ap-desc">${a.desc}</div>`;
   document.body.appendChild(div);
-  div.addEventListener('click', ()=>div.remove());
+  div.addEventListener('click', ()=>{
+    div.remove();
+    // 딜러 턴 연출 중이면 클릭으로 즉시 내 턴 시작
+    if(B && G.screen==='battle' && B.phase==='dealer'){ B.phase='bet'; render(); }
+  });
   setTimeout(()=>{ div.classList.add('out'); }, 2000);
   setTimeout(()=>{ div.remove(); }, 2500);
 }
@@ -975,6 +990,12 @@ function renderResultArea(){
           : `${respinSkill?`<button class="btn ${canRespin?'':'disabled'}" data-act="respin">🔄 리스핀 ${freeAvail?'(무료)':'(4 포커스)'}</button>`:''}
              <button class="btn gold" data-act="confirm">결과 확정</button>`}
       </div>
+    </div>`;
+  }
+  if(B.phase==='dealer'){
+    return `<div class="result-area idle">
+      <div class="spin-num idle">🎩</div>
+      <div class="result-hint">딜러가 수를 두는 중… <span class="small">(팝업 클릭으로 건너뛰기)</span></div>
     </div>`;
   }
   const m = B.turnMods;
